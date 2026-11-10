@@ -1,0 +1,7 @@
+streamlit>=1.35.0
+plotly>=5.20.0
+google-genai>=1.0.0
+pandas>=2.0.0
+numpy>=1.26.0
+beautifulsoup4>=4.12
+requests>=2.31

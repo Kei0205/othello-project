@@ -1,0 +1,40 @@
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+env/
+venv/
+ENV/
+
+# Databases & local user state
+*.db
+*.sqlite
+*.sqlite3
+owner_auth.json
+
+# Learning / Quest system (bassy84 integration excluded)
+data/
+tools/
+quests_ui.py
+tactics_recommender.py
+PROMPT_BASSY84_INTEGRATION.md
+
+# Large binaries & Egaroucid executable resources
+egaroucid_console/Egaroucid_for_Console_7_8_1_Windows_SIMD/*.exe
+egaroucid_console/Egaroucid_for_Console_7_8_1_Windows_SIMD/*.dll
+egaroucid_console/Egaroucid_for_Console_7_8_1_Windows_SIMD/resources/
+!egaroucid_console/README.md
+
+# Local dev logs & personal history reviews
+latest_game_review.md
+player_growth_log.md
+DEBUG_REPORT_*.md
+REPORT_*.md
+backup_original/
+.claude/
+.gemini/
+
+# Streamlit secrets
+.streamlit/secrets.toml
