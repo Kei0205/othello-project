@@ -4316,17 +4316,53 @@ def _normalize_ip(ip: Optional[str]) -> Optional[str]:
     return ip
 
 
-def is_local_client() -> bool:
-    """アプリを動かしているPC自身からのアクセスか（localhost、または自分のLAN IPで開いた場合）"""
-    try:
-        ip = _normalize_ip(st.context.ip_address)
-        host = urllib.parse.urlparse(st.context.url or "").hostname or ""
-    except Exception:
+# 中継サーバー（nginx などのリバースプロキシ）を通ったアクセスに付くヘッダー
+PROXY_HEADERS = ("x-forwarded-for", "x-real-ip", "forwarded", "x-forwarded-host", "cf-connecting-ip", "true-client-ip")
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1")
+
+
+def auto_owner_enabled() -> bool:
+    """
+    このPCから開いたら自動でオーナーにするか。サーバーに置いて公開するときは、環境変数
+    OTHELLO_AUTO_OWNER=0 で切る（オーナーはパスワードでログインする）
+    """
+    return os.environ.get("OTHELLO_AUTO_OWNER", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+def _is_local_request(ip: Optional[str], url_host: str, headers: Dict[str, str], lan_ip: str) -> bool:
+    """
+    アクセス元の情報から、アプリを動かしているPC自身からのアクセスかを判定する（st.* に触らないのでテストできる）。
+    - 中継サーバーを通ったアクセスは、手元のPCからでも違うとみなす。中継サーバーからの接続は
+      アクセス元が 127.0.0.1 に見えるので、IP だけで判定すると、サイトを開いた人が全員オーナーになってしまうため
+    - Host（開いたアドレス）が localhost・127.0.0.1・このPCの LAN IP 以外（ドメイン名など）なら違うとみなす
+    """
+    lower = {k.lower(): v for k, v in (headers or {}).items()}
+    if any(h in lower for h in PROXY_HEADERS):
         return False
+    allowed_hosts = set(LOCAL_HOSTS) | {lan_ip}
+    host_header = lower.get("host", "")
+    if host_header:
+        # 'localhost:5000' → 'localhost'、'[::1]:5000' → '::1'
+        name = host_header.rsplit(":", 1)[0] if not host_header.startswith("[") else host_header[1:].split("]", 1)[0]
+        if name not in allowed_hosts:
+            return False
     if ip is None:
         # Streamlit は localhost からの接続では IP を None にする
-        return host in ("localhost", "127.0.0.1", "::1")
-    return ip in ("127.0.0.1", "::1") or ip == get_lan_ip()
+        return url_host in LOCAL_HOSTS
+    return ip in ("127.0.0.1", "::1") or ip == lan_ip
+
+
+def is_local_client() -> bool:
+    """アプリを動かしているPC自身からのアクセスか（localhost、または自分のLAN IPで開いた場合）"""
+    if not auto_owner_enabled():
+        return False
+    try:
+        ip = _normalize_ip(st.context.ip_address)
+        url_host = urllib.parse.urlparse(st.context.url or "").hostname or ""
+        headers = dict(st.context.headers or {})
+    except Exception:
+        return False
+    return _is_local_request(ip, url_host, headers, get_lan_ip())
 
 
 def _load_owner_auth() -> Optional[Dict[str, str]]:
